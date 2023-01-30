@@ -46,4 +46,10 @@ bmp *bmp_new(image *image);
 int bmp_save(bmp *src, const char *path);
 color *bmp_get(uint32_t x, uint32_t y);
 void bmp_print(bmp *src);
+
+/// @brief compare img1 and img2 byte by byte.
+/// @param img1
+/// @param img2
+/// @return 1 means true and 0 means false.
+int bmp_compare(bmp *img1, bmp *img2);
 #endif

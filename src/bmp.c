@@ -24,6 +24,7 @@ int bmp_save(bmp *src, const char *path)
 {
     FILE *f = fopen(path, "w");
     fwrite(src->raw, src->file->bf_size, 1, f);
+    LOG("Save BMP file %s", path);
     fclose(f);
     return 0;
 }
@@ -37,7 +38,7 @@ void bmp_print(bmp *src)
 bmp *bmp_new(image *image)
 {
     bmp *res = (bmp *)malloc(sizeof(bmp));
-    res->raw = (uint8_t *)malloc(sizeof(uint8_t) * image->hight * image->width + 138);
+    res->raw = (uint8_t *)malloc(sizeof(color) * image->hight * image->width + 138);
     uint8_t head[138] = {
         0x42, 0x4D, 0x8A, 0x90, 0x7E, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x8A, 0x00, 0x00, 0x00, 0x7C, 0x00,
@@ -64,7 +65,26 @@ bmp *bmp_new(image *image)
     res->info->bi_compression = BMP_BI_RGB;
     res->info->bi_hight = image->hight;
     res->info->bi_width = image->width;
-    res->info->bi_image_size = image->hight * image->width * 4;
+    res->info->bi_image_size = image->hight * image->width * sizeof(color);
+    res->file->bf_size = res->info->bi_image_size + 138;
     memcpy(res->data, image->data, res->info->bi_image_size);
     return res;
+}
+
+int bmp_compare(bmp *img1, bmp *img2)
+{
+    if (img1->info->bi_image_size != img2->info->bi_image_size)
+        return 0;
+
+    for (int i = 0; i < img1->info->bi_image_size / 4; i++)
+    {
+        if (is_color_equal(img1->data + i, img2->data + i) == 0)
+        {
+            LOG("Color different in number %d pixiv,total pixiv %d", i, img1->info->bi_image_size / 4);
+            print_color(*(img1->data + i));
+            print_color(*(img2->data + i));
+            return 0;
+        }
+    }
+    return 1;
 }

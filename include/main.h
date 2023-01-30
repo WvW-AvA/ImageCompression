@@ -20,4 +20,6 @@ typedef struct
 } image;
 
 color *get_pixiv(image *target, uint32_t x, uint32_t y);
+void print_color(color c);
+int is_color_equal(color *c1, color *c2);
 #endif
