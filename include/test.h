@@ -6,6 +6,7 @@
 #include "stdlib.h"
 #include "string.h"
 #include "huffman.h"
+#include "prediction.h"
 int new_image_test()
 {
     image im;
@@ -59,8 +60,29 @@ int huffman_decode_test()
     image img;
     img.hight = 1080;
     img.width = 1920;
-    img.data = decode.data;
+    img.data = (color *)decode.data;
     bmp *bmp = bmp_new(&img);
     bmp_save(bmp, "/home/wu_wa/CICIEC/ImageCompression/atri_buffman_decode.bmp");
+}
+int prediction_test()
+{
+    bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
+    image img = new_image(bmp1);
+    prediction pre;
+    pre.predict_type = COLUMN_DIFFER_PREDICT;
+    predict(&pre, &img);
+    bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
+}
+
+int recover_test()
+{
+    bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
+    image img = new_image(bmp1);
+    prediction pre1;
+    pre1.predict_type = COLUMN_DIFFER_PREDICT;
+    predict(&pre1, &img);
+    bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
+    recover(&pre1, &img);
+    bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_recover.bmp");
 }
 #endif

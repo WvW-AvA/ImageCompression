@@ -32,7 +32,7 @@ typedef struct
     uint32_t bi_color_important; // important color index
 } bmp_info_head;
 
-typedef struct
+typedef struct bmp
 {
     uint8_t *raw;
     bmp_file_head *file;
