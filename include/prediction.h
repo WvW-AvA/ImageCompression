@@ -2,15 +2,18 @@
 #define __PREDICTION_H__
 #include "main.h"
 #define COLUMN_DIFFER_PREDICT 0
-#define ROW_DIFFER_PREDICT 1
-#define MIX_DIFFER_PREDICT 2
-typedef struct
+#define LOCO_I_PREDICT 1
+typedef struct prediction
 {
+    uint32_t file_size;
     uint8_t predict_type;
-    color first_pixiv;
+    color *reserve_color;
     uint8_t *sign_flag;
 } prediction;
 
+prediction new_prediction(uint8_t predict_type);
+void prediction_map(uint8_t *raw, prediction *pred);
+void prediction_memcpy(uint8_t *dst, prediction *pred);
 void predict(prediction *predict, image *target);
 void recover(prediction *predict, image *target);
 #endif

@@ -31,7 +31,9 @@ int new_image_test()
 int bmp_compare_test()
 {
     bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
-    bmp *bmp2 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri_j2k.bmp");
+    bmp *bmp2 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_new.bmp");
+    bmp_print(bmp1);
+    bmp_print(bmp2);
     if (bmp_compare(bmp1, bmp2))
         LOG("bmp1 and bmp2 are" GREEN " equal" RESET);
     else
@@ -64,25 +66,25 @@ int huffman_decode_test()
     bmp *bmp = bmp_new(&img);
     bmp_save(bmp, "/home/wu_wa/CICIEC/ImageCompression/atri_buffman_decode.bmp");
 }
+
 int prediction_test()
 {
     bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
     image img = new_image(bmp1);
-    prediction pre;
-    pre.predict_type = COLUMN_DIFFER_PREDICT;
+    prediction pre = new_prediction(LOCO_I_PREDICT);
     predict(&pre, &img);
-    bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
+    bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_COLO_I_prediction.bmp");
 }
 
 int recover_test()
 {
     bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
     image img = new_image(bmp1);
-    prediction pre1;
-    pre1.predict_type = COLUMN_DIFFER_PREDICT;
+    prediction pre1 = new_prediction(COLUMN_DIFFER_PREDICT);
     predict(&pre1, &img);
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
     recover(&pre1, &img);
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_recover.bmp");
 }
+
 #endif

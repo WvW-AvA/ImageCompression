@@ -16,12 +16,22 @@ typedef struct
     uint8_t A;
 } color;
 
-typedef struct
+typedef struct image
 {
     uint32_t width;
     uint32_t hight;
     color *data;
 } image;
+
+typedef struct
+{
+    uint8_t *raw;
+    uint32_t file_size;
+    uint32_t image_width;
+    uint32_t image_hight;
+    struct prediction *predict;
+    struct huffman_encode_handle *huffman;
+} file_struct;
 
 color *get_pixiv(image *target, uint32_t x, uint32_t y);
 void print_color(color c);

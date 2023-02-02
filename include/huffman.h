@@ -2,10 +2,10 @@
 #define __HUFFMAN_H__
 #include "main.h"
 
-typedef struct
+typedef struct huffman_encode_handle
 {
     uint8_t *raw;
-    uint32_t f_size;
+    uint32_t file_size;
 
     uint16_t symbol_num;      // the number of the symbols
     uint32_t origin_size;     // the size of the origin data [byte]
@@ -43,6 +43,7 @@ typedef struct huffman_node
 huffman_encode_handle huffman_encode(huffman_decode_handle src);
 huffman_decode_handle huffman_decode(huffman_encode_handle src);
 void huffman_save(huffman_encode_handle src, const char *path);
+void huffman_map(huffman_encode_handle *target);
 huffman_encode_handle huffman_load(const char *path);
 
 #endif

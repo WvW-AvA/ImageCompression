@@ -20,6 +20,17 @@ void print_priority_queue(huffman_node *node)
     }
 }
 
+void print_queue(huffman_node *node, uint32_t size)
+{
+    for (int i = 0; i < size; i++)
+    {
+        if (node[i].son0 == NULL && node[i].son1 == NULL)
+            printf("%d:(%d,%d)-->", i, node[i].value, node[i].frequency);
+        else
+            printf("%d:(,%d)-->", i, node[i].frequency);
+    }
+    printf("\n");
+}
 void print_haffman_tree(huffman_node *node)
 {
     static int stack_ind = 0;
@@ -36,6 +47,7 @@ void print_haffman_tree(huffman_node *node)
         printf(RED "(%d,%d,%d)\n" RESET, node->value, node->frequency, node->code);
     stack_ind--;
 }
+
 void find_father(huffman_node *node, huffman_node *father, uint8_t code)
 {
     node->before = father;
@@ -46,12 +58,13 @@ void find_father(huffman_node *node, huffman_node *father, uint8_t code)
         find_father(node->son1, node, 1);
     }
 }
+
 uint32_t build_huffman_tree(huffman_node *nodes, uint16_t symbol_num)
 {
     huffman_node *end_node = nodes + symbol_num - 1;
     huffman_node *curr_node = end_node;
     uint32_t ind = symbol_num;
-    while (curr_node->before != NULL)
+    while (curr_node != NULL && curr_node->before != NULL)
     {
         nodes[ind].frequency = curr_node->frequency + curr_node->before->frequency;
         nodes[ind].son0 = curr_node;
@@ -78,8 +91,8 @@ uint32_t build_huffman_tree(huffman_node *nodes, uint16_t symbol_num)
 huffman_encode_handle huffman_encode(huffman_decode_handle src)
 {
     huffman_encode_handle ret;
-    huffman_statstic_struct symbol_group[256];
-    huffman_node nodes[512];
+    huffman_statstic_struct *symbol_group = (huffman_statstic_struct *)malloc(256 * sizeof(huffman_statstic_struct));
+    huffman_node *nodes = (huffman_node *)malloc(512 * sizeof(huffman_node));
 
     uint32_t *buffer = (uint32_t *)malloc(src.size * sizeof(uint32_t) / 2);
     uint32_t buffer_index = 0;
@@ -152,13 +165,14 @@ huffman_encode_handle huffman_encode(huffman_decode_handle src)
             index++;
         }
     }
+
     // pack data
     ret.data_size = (buffer_index + 1) * 4;
     ret.symbol_num = symbol_num;
     ret.origin_size = src.size;
     ret.last_byte_record = index;
-    ret.f_size = ret.symbol_num * 5 + ret.data_size + 11;
-    ret.raw = (uint8_t *)malloc(ret.f_size * sizeof(uint8_t));
+    ret.file_size = ret.symbol_num * 5 + ret.data_size + 11;
+    ret.raw = (uint8_t *)malloc(ret.file_size * sizeof(uint8_t));
     ret.symbol = ret.raw + 11;
     ret.symbol_freq = (uint32_t *)(ret.symbol + ret.symbol_num);
     ret.data = (uint8_t *)(ret.symbol_freq + ret.symbol_num);
@@ -172,6 +186,8 @@ huffman_encode_handle huffman_encode(huffman_decode_handle src)
         ret.symbol[i] = nodes[i].value;
         ret.symbol_freq[i] = nodes[i].frequency;
     }
+    free(nodes);
+    free(symbol_group);
     free(buffer);
     LOG("huffman encode done!");
     return ret;
@@ -229,14 +245,26 @@ huffman_decode_handle huffman_decode(huffman_encode_handle src)
     }
     return ret;
 }
+
 void huffman_save(huffman_encode_handle src, const char *path)
 {
     FILE *f = fopen(path, "w");
-    fwrite(src.raw, src.f_size, 1, f);
+    fwrite(src.raw, src.file_size, 1, f);
     fclose(f);
     LOG("Save huffman file %s", path);
 }
 
+void huffman_map(huffman_encode_handle *target)
+{
+    target->symbol_num = *((uint16_t *)(target->raw));
+    target->origin_size = *((uint32_t *)(target->raw + 2));
+    target->data_size = *((uint32_t *)(target->raw + 6));
+    target->last_byte_record = *(target->raw + 10);
+    target->symbol = target->raw + 11;
+    target->symbol_freq = (uint32_t *)(target->symbol + target->symbol_num);
+    target->data = (uint8_t *)(target->symbol_freq + target->symbol_num);
+    LOG("symbol num:%d \n origin size:%d \n data size %d \n last byte recode:%d", target->symbol_num, target->origin_size, target->data_size, target->last_byte_record);
+}
 huffman_encode_handle huffman_load(const char *path)
 {
     huffman_encode_handle ret;
@@ -247,15 +275,8 @@ huffman_encode_handle huffman_load(const char *path)
     ret.raw = malloc(size * sizeof(uint8_t));
     fread(ret.raw, size, 1, f);
     fclose(f);
-    ret.f_size = size;
-    ret.symbol_num = *((uint16_t *)(ret.raw));
-    ret.origin_size = *((uint32_t *)(ret.raw + 2));
-    ret.data_size = *((uint32_t *)(ret.raw + 6));
-    ret.last_byte_record = *(ret.raw + 10);
-    ret.symbol = ret.raw + 11;
-    ret.symbol_freq = (uint32_t *)(ret.symbol + ret.symbol_num);
-    ret.data = (uint8_t *)(ret.symbol_freq + ret.symbol_num);
-
-    LOG("Load huffman file %s \nfile size:%d\n symbol num:%d \n origin size:%d \n data size %d \n last byte recode:%d", path, size, ret.symbol_num, ret.origin_size, ret.data_size, ret.last_byte_record);
+    ret.file_size = size;
+    LOG("Load huffman file %s  file size:%d", path, size);
+    huffman_map(&ret);
     return ret;
 }
