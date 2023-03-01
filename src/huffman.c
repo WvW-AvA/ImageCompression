@@ -91,10 +91,10 @@ uint32_t build_huffman_tree(huffman_node *nodes, uint16_t symbol_num)
 huffman_encode_handle huffman_encode(huffman_decode_handle src)
 {
     huffman_encode_handle ret;
-    huffman_statstic_struct *symbol_group = (huffman_statstic_struct *)malloc(256 * sizeof(huffman_statstic_struct));
-    huffman_node *nodes = (huffman_node *)malloc(512 * sizeof(huffman_node));
+    huffman_statstic_struct *symbol_group = (huffman_statstic_struct *)calloc(256, sizeof(huffman_statstic_struct));
+    huffman_node *nodes = (huffman_node *)calloc(512, sizeof(huffman_node));
 
-    uint32_t *buffer = (uint32_t *)malloc(src.size * sizeof(uint32_t) / 2);
+    uint32_t *buffer = (uint32_t *)calloc(src.size, sizeof(uint32_t) / 2);
     uint32_t buffer_index = 0;
     for (int i = 0; i < 256; i++)
     {
@@ -243,6 +243,7 @@ huffman_decode_handle huffman_decode(huffman_encode_handle src)
     {
         LOG_ERROR("buffman decode error: decode size is not equal to origin size");
     }
+    LOG("huffman decode done, decode size:%d", ret.size);
     return ret;
 }
 

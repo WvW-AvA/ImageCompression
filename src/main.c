@@ -35,6 +35,7 @@ inline color color_minus(color c1, color c2)
     c.A = MAX(c1.A - c2.A, 0);
     return c;
 }
+
 image new_image(bmp *bmp)
 {
     image ret;
@@ -87,7 +88,34 @@ file_struct data_load(const char *path)
     huffman_map(ret.huffman);
     return ret;
 }
-
+void RGBARGBA_2_RRGGBBAA(uint8_t *data, uint32_t size)
+{
+    uint8_t *temp = (uint8_t *)malloc(size);
+    uint32_t pix_num = size / 4;
+    for (int i = 0; i < pix_num; i++)
+    {
+        temp[pix_num * 0 + i] = data[i * 4 + 0];
+        temp[pix_num * 1 + i] = data[i * 4 + 1];
+        temp[pix_num * 2 + i] = data[i * 4 + 2];
+        temp[pix_num * 3 + i] = data[i * 4 + 3];
+    }
+    memcpy(data, temp, size);
+    free(temp);
+}
+void RRGGBBAA_2_RGBARGBA(uint8_t *data, uint32_t size)
+{
+    uint8_t *temp = (uint8_t *)malloc(size);
+    uint32_t pix_num = size / 4;
+    for (int i = 0; i < pix_num; i++)
+    {
+        temp[i * 4 + 0] = data[pix_num * 0 + i];
+        temp[i * 4 + 1] = data[pix_num * 1 + i];
+        temp[i * 4 + 2] = data[pix_num * 2 + i];
+        temp[i * 4 + 3] = data[pix_num * 3 + i];
+    }
+    memcpy(data, temp, size);
+    free(temp);
+}
 void encode(const char *image_path, const char *data_path)
 {
     file_struct data;
@@ -95,11 +123,17 @@ void encode(const char *image_path, const char *data_path)
     image img = new_image(bmp);
     data.image_width = bmp->info->bi_width;
     data.image_hight = bmp->info->bi_hight;
+    // prediction
     prediction pred = new_prediction(LOCO_I_PREDICT);
     predict(&pred, &img);
+    RGBARGBA_2_RRGGBBAA((uint8_t *)bmp->data, bmp->info->bi_image_size);
+    // lz77
+    uint32_t lz_size = 0x3f3f3f3f;
+    lz_size = lz77_encode((uint8_t *)bmp->data, bmp->info->bi_image_size);
+    // huffman
     huffman_decode_handle src;
     src.data = (uint8_t *)bmp->data;
-    src.size = bmp->info->bi_image_size;
+    src.size = MIN(bmp->info->bi_image_size, lz_size);
     huffman_encode_handle h_encode = huffman_encode(src);
     data.huffman = &h_encode;
     data.predict = &pred;
@@ -108,9 +142,8 @@ void encode(const char *image_path, const char *data_path)
     src2.data = (uint8_t *)data.raw;
     src2.size = data.file_size;
     huffman_encode_handle h_encode2 = huffman_encode(src2);
-    huffman_save(h_encode2, "/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_I_2.save");
+    huffman_save(h_encode2, "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I_2.save");
 }
-
 void decode(const char *data_path, const char *save_path)
 {
     file_struct data = data_load(data_path);
@@ -118,7 +151,8 @@ void decode(const char *data_path, const char *save_path)
     img.width = data.image_width;
     img.hight = data.image_hight;
     huffman_decode_handle decode = huffman_decode(*data.huffman);
-    img.data = (color *)decode.data;
+    img.data = (color *)lz77_decode(decode.data, decode.size, img.hight * img.width * 4);
+    RRGGBBAA_2_RGBARGBA(img.data, img.width * img.hight * 4);
     recover(data.predict, &img);
     bmp *bmp = bmp_new(&img);
     bmp_save(bmp, save_path);
@@ -130,7 +164,8 @@ int main(int argc, char **argv)
     // huffman_decode_test();
     // prediction_test();
     // recover_test();
-    // encode("/home/wu_wa/CICIEC/ImageCompression/atri.bmp", "/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_I.save");
-    // decode("/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_new.bmp");
-    bmp_compare_test();
+    // bmp_compare_test();
+    // lz77_test();
+    // encode("/home/wu_wa/CICIEC/ImageCompression/atri.bmp", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save");
+    decode("/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_new.bmp");
 }

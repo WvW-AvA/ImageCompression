@@ -7,6 +7,7 @@
 #include "string.h"
 #include "huffman.h"
 #include "prediction.h"
+#include "lz77.h"
 int new_image_test()
 {
     image im;
@@ -87,4 +88,14 @@ int recover_test()
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_recover.bmp");
 }
 
+int lz77_test()
+{
+    uint8_t data[21] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    uint32_t size = lz77_encode(data, 21);
+    uint8_t *d = lz77_decode(data, size, 21);
+    printf("\n");
+    for (int i = 0; i < 21; i++)
+        printf("%d ", d[i]);
+    printf("\n");
+}
 #endif
