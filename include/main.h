@@ -1,8 +1,11 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
-#define MAX(a, b) (a) > (b) ? (a) : (b)
-#define MIN(a, b) (a) < (b) ? (a) : (b)
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define ABS(a) ((a) < 0 ? (-(a)) : (a))
+#define SIGN(a) ((a) < 0 ? (-1) : (1))
+#define CLAMP(min, a, max) ((a) < (max) ? MAX(a, min) : (max))
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
