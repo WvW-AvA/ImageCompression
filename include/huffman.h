@@ -10,7 +10,7 @@ typedef struct huffman_encode_handle
     uint16_t symbol_num;      // the number of the symbols
     uint32_t origin_size;     // the size of the origin data [byte]
     uint32_t data_size;       // the size of the data [byte]
-    uint8_t last_byte_record; // because of the last word of data is not full of valid data,
+    uint8_t last_byte_record; // because the last word of data is not full of valid data,
                               // we must record the end of the valid data index in last word.
     uint8_t *symbol;          // the pointer of the symbols list
     uint32_t *symbol_freq;    // the pointer of the symbols frequency list

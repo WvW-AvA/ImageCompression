@@ -8,6 +8,7 @@
 #include "huffman.h"
 #include "prediction.h"
 #include "lz77.h"
+#include "golomb.h"
 int new_image_test()
 {
     image im;
@@ -86,6 +87,22 @@ int recover_test()
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
     recover(&pre1, &img);
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_recover.bmp");
+}
+
+int golomb_rice_test()
+{
+    uint32_t res;
+    uint32_t ind;
+    for (int i = 0; i < 16; i++)
+    {
+        res = 0;
+        ind = 0;
+        golomb_rice_encode(i, (uint8_t *)&res, &ind, 2);
+        ind = 0;
+        int temp = GET_BIT(&res, 0);
+        uint16_t dec = golomb_rice_decode((uint8_t *)&res, &ind, 2);
+        LOG("%x  %d  %d", res, ind, dec);
+    }
 }
 
 int lz77_test()

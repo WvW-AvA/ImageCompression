@@ -1,6 +1,9 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
 
+#define SET_BIT(D, P) ((*((uint8_t *)(D) + ((P) / 8))) |= (0x80 >> ((P) % 8)))
+#define RESET_BIT(D, P) ((*((uint8_t *)(D) + ((P) / 8))) &= (~(0x80 >> ((P) % 8))))
+#define GET_BIT(D, P) ((*((uint8_t *)(D) + ((P) / 8))) & (0x80 >> ((P) % 8)))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define ABS(a) ((a) < 0 ? (-(a)) : (a))

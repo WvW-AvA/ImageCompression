@@ -3,8 +3,6 @@
 #include "stdlib.h"
 #include "log.h"
 #include "main.h"
-#define SET_BIT(D, P) (*(uint8_t *)((D) + ((P) / 8))) |= (0x80 >> ((P) % 8))
-#define GET_BIT(D, P) (*(uint8_t *)((D) + ((P) / 8))) & (0x80 >> ((P) % 8))
 #define COMPARE_MINUS(A, B, D, P) \
     if ((A) > (B))                \
         (A) = (A) - (B);          \

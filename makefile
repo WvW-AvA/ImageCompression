@@ -4,13 +4,16 @@ BIN= ./bin
 
 all:clean ${BIN}/main ${BIN}/hexviewer
 
-${BIN}/main:${BIN}/main.o ${BIN}/bmp.o ${BIN}/huffman.o ${BIN}/prediction.o ${BIN}/lz77.o
+${BIN}/main:${BIN}/main.o ${BIN}/bmp.o ${BIN}/huffman.o ${BIN}/prediction.o ${BIN}/lz77.o ${BIN}/golomb.o
 	gcc -std=c99 $^ -o $@	
 
 ${BIN}/hexviewer:${BIN}/hexviewer.o
 	g++  $^ -o $@	
 
 ${BIN}/main.o:${SRC}/main.c
+	gcc -std=c99 -I ${INC} -c $< -o $@ 
+
+${BIN}/golomb.o:${SRC}/golomb.c
 	gcc -std=c99 -I ${INC} -c $< -o $@ 
 
 ${BIN}/bmp.o:${SRC}/bmp.c
