@@ -9,6 +9,21 @@
 #include "prediction.h"
 #include "lz77.h"
 #include "golomb.h"
+
+char str[100];
+char *print_bit(uint8_t *src, uint32_t num)
+{
+    for (int i = 0; i < num; i++)
+    {
+        if (GET_BIT(src, i))
+            str[i] = '1';
+        else
+            str[i] = '0';
+    }
+    str[num] = '\0';
+    return str;
+}
+
 int new_image_test()
 {
     image im;
@@ -93,15 +108,28 @@ int golomb_rice_test()
 {
     uint32_t res;
     uint32_t ind;
+    // rice golomb encode decode test
+    LOG("// rice golomb encode decode test");
     for (int i = 0; i < 16; i++)
     {
         res = 0;
         ind = 0;
         golomb_rice_encode(i, (uint8_t *)&res, &ind, 2);
         ind = 0;
-        int temp = GET_BIT(&res, 0);
         uint16_t dec = golomb_rice_decode((uint8_t *)&res, &ind, 2);
-        LOG("%x  %d  %d", res, ind, dec);
+        LOG("%s  %d  %d", print_bit(&res, ind), ind, dec);
+    }
+    // k-stage exp golomb encode decode test
+    LOG("// k-stage exp golomb encode decode test");
+    for (int i = 0; i < 30; i++)
+    {
+        res = 0;
+        ind = 0;
+        golomb_exp_encode(i, (uint8_t *)&res, &ind, 0);
+        // LOG("%s  %d", print_bit(&res, ind), ind);
+        ind = 0;
+        uint16_t dec = golomb_exp_decode((uint8_t *)&res, &ind, 0);
+        LOG("%s  %d  %d", print_bit(&res, ind), ind, dec);
     }
 }
 

@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <assert.h>
 #define __DEBUG__
-
 #ifdef __DEBUG__
 
 #define RESET "\033[0m"
