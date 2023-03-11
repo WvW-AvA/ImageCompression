@@ -2,8 +2,11 @@
 #include "prediction.h"
 #include "string.h"
 #include "stdlib.h"
+#include "golomb.h"
 // 量化边界
 int quatization_edge[4];
+// 当前channel的编码模式
+int channel_mode[4];
 // 预测误差绝对值之和
 int contex_arg_a[4][365];
 // 预测误差重建值之和
@@ -13,8 +16,23 @@ int contex_arg_c[4][365];
 // 上下文出现次数
 int contex_arg_n[4][365];
 
-void run_length_encode(image *img, uint32_t *ptr, uint8_t *dst)
+uint32_t run_length_count[4];
+uint8_t run_length_referance[4];
+void write_value(uint32_t val, jls *jls)
 {
+    golomb_exp_encode(val, jls->data_segment, &(jls->data_size), jls->golomb_exp_k);
+}
+
+void run_length_encode(jls *jls, uint8_t channel, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+{
+    if (x == run_length_referance[channel])
+        run_length_count[channel]++;
+    else
+    {
+        write_value(run_length_count[channel], jls);
+        channel_mode[channel] = NORMAL_MODE;
+        normal_encode(jls, x, a, b, c, d, channel);
+    }
 }
 
 int gradient_quantization(int differ)
@@ -27,11 +45,11 @@ int gradient_quantization(int differ)
     return SIGN(differ) * ret;
 }
 
-void update_context_parameter(int err, int q, jls_config config, int *a, int *b, int *c, int *n)
+void update_context_parameter(int err, int q, jls *jls, int *a, int *b, int *c, int *n)
 {
     // update context parameter
     a[q] += ABS(err);
-    b[q] += err * (2 * config.near + 1);
+    b[q] += err * (2 * jls->near + 1);
     if (n[q] == 0)
     {
         a[q] >>= 1;
@@ -55,9 +73,22 @@ void update_context_parameter(int err, int q, jls_config config, int *a, int *b,
     }
 }
 
-void normal_encode(jls_config config, image *img, uint32_t *ptr, uint8_t dst, uint32_t a, uint32_t b, uint32_t c,
-                   int d0, int d1, int d2, uint8_t channel)
+void normal_encode(jls *jls, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t channel)
 {
+    int d0 = d - b;
+    int d1 = b - c;
+    int d2 = c - a;
+    // caculate differ
+    if (d0 == 0 && d1 == 0 && d2 == 0 && x == a)
+    {
+        // flat area
+        channel_mode[channel] = RUN_LENGTH_MODE;
+        write_value(RUN_LENGTH_MODE_FLAG, jls);
+        write_value(x, jls);
+        run_length_count[channel] = 0;
+        run_length_referance[channel] = x;
+        run_length_encode(jls, channel, x, a, b, c, d);
+    }
     // quantization
     int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
@@ -68,7 +99,7 @@ void normal_encode(jls_config config, image *img, uint32_t *ptr, uint8_t dst, ui
     q2 *= sign;
     int q = ((q0 * 9 + q1) * 9 + q2);
 
-    uint32_t pred;
+    uint8_t pred;
     if (c > MAX(a, b))
         pred = MIN(a, b);
     else if (c < MIN(a, b))
@@ -76,76 +107,90 @@ void normal_encode(jls_config config, image *img, uint32_t *ptr, uint8_t dst, ui
     else
         pred = a + b - c;
 
-    if (sign == 1)
-        pred += contex_arg_c[channel][q];
-    else
-        pred -= contex_arg_c[channel][q];
-    pred = MAX(0, pred);
-    int err = sign * ((*ptr) - pred);
-    update_context_parameter(err, q, config, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
-    int m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
+    pred = CLAMP(0, pred + sign * contex_arg_c[channel][q], 255);
+
+    int err = sign * (x - pred);
+    update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
+    uint32_t m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
+    write_value(m_err, jls);
 }
 
-void run_channel_encode(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t channel)
+void run_channel_encode(uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t x, uint8_t channel, jls *jls)
 {
-    // caculate differ
-    int d0 = d - b;
-    int d1 = b - c;
-    int d2 = c - a;
-    if (d0 == 0 && d1 == 0 && d2 == 0)
+    if (channel_mode[channel] == RUN_LENGTH_MODE)
     {
-        // select run-length encode mode
-        // run_length_encode();
+        run_length_encode(jls, channel, x, a, b, c, d);
     }
-    else
+    else if (channel_mode[channel] == NORMAL_MODE)
     {
-        // select normal encode mode
-        //   normal_encode();
+        normal_encode(jls, x, a, b, c, d, channel);
     }
 }
 
-void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, uint8_t *dst)
+void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls, uint8_t channel)
 {
     // get context
-    color a, b, c, d;
+    uint8_t *a, *b, *c, *d, *v;
+    v = (uint8_t *)(get_pixiv(img, x, y));
     if (y != 0)
     {
-        b = *(get_pixiv(img, x, y - 1));
+        b = (uint8_t *)(get_pixiv(img, x, y - 1));
         if (x != 0)
         {
             if (x != img->width)
-                d = *(get_pixiv(img, x + 1, y - 1));
+                d = (uint8_t *)(get_pixiv(img, x + 1, y - 1));
             else
                 d = b;
-            a = *(get_pixiv(img, x - 1, y));
-            c = *(get_pixiv(img, x - 1, y - 1));
+            a = (uint8_t *)(get_pixiv(img, x - 1, y));
+            c = (uint8_t *)(get_pixiv(img, x - 1, y - 1));
         }
         else
         {
             a = b;
             if (y <= 1)
-                *((uint32_t *)&c) = 0;
+                *((uint32_t *)c) = 0;
             else
-                c = *(get_pixiv(img, x, y - 2));
+                c = (uint8_t *)(get_pixiv(img, x, y - 2));
         }
     }
-    run_channel_encode(a.R, b.R, c.R, d.R, CHANNEL_R);
-    run_channel_encode(a.G, b.G, c.G, d.G, CHANNEL_G);
-    run_channel_encode(a.B, b.B, c.B, d.B, CHANNEL_B);
-    run_channel_encode(a.A, b.A, c.A, d.A, CHANNEL_A);
+    run_channel_encode(a + channel, b + channel, c + channel, d + channel, v + channel, channel, jls);
 }
 
-void jls_encoder_init(jls_config jls_config)
+jls jls_encoder_init(image *img, uint8_t scan_mode)
 {
-    quatization_edge[1] = (jls_config.bit_per_pixiv - 7) * 3 + jls_config.near;
-    quatization_edge[2] = (jls_config.bit_per_pixiv - 7) * 7 + 2 * jls_config.near;
-    quatization_edge[3] = (jls_config.bit_per_pixiv - 7) * 21 + 3 * jls_config.near;
+    jls jls;
+    jls.data_segment = (uint8_t *)malloc(sizeof(color) * img->width * img->hight);
+    jls.data_size = 0;
+    jls.height = img->hight;
+    jls.width = img->width;
+    jls.channel_count = 4;
+    jls.golomb_exp_k = 0;
+    jls.near = 0;
+    jls.scan_mode = scan_mode;
+    quatization_edge[1] = (8 - 7) * 3 + jls.near;
+    quatization_edge[2] = (8 - 7) * 7 + 2 * jls.near;
+    quatization_edge[3] = (8 - 7) * 21 + 3 * jls.near;
+    return jls;
 }
-jls jls_encode(image *img)
+
+void line_scan(image *img, jls *jls)
 {
-    jls ret;
-    ret.raw = (uint8_t *)malloc(sizeof(color) * img->width * img->hight);
+    for (int channel = 0; channel < jls->channel_count; channel++)
+    {
+        for (int y = 0; y < img->hight; y++)
+            for (int x = 0; x < img->width; x++)
+                jls_encode_magnetic_head(img, x, y, jls, channel);
+        write_value(CHANNEL_END, jls);
+    }
 }
+void jls_encode(image *img, jls *jls)
+{
+    if (jls->scan_mode == LINE_SCAN)
+    {
+        line_scan(img, jls);
+    }
+}
+
 image jls_decode(jls *jls)
 {
 }

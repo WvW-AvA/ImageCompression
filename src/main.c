@@ -4,7 +4,19 @@
 #include "bmp.h"
 #include "test.h"
 #include "main.h"
-
+char str[100];
+char *print_bit(uint8_t *src, uint32_t num)
+{
+    for (int i = 0; i < num; i++)
+    {
+        if (GET_BIT(src, i))
+            str[i] = '1';
+        else
+            str[i] = '0';
+    }
+    str[num] = '\0';
+    return str;
+}
 inline color *get_pixiv(image *target, uint32_t x, uint32_t y)
 {
     return target->data + (target->width * y + x);
