@@ -9,25 +9,23 @@
 #include "prediction.h"
 #include "lz77.h"
 #include "golomb.h"
+#include "jls.h"
 int new_image_test()
 {
-    image im;
-    im.data = (color *)malloc(sizeof(color) * 512 * 512);
-    im.width = 512;
-    im.hight = 512;
-    for (int i = 0; i < 512; i++)
+    image im = new_image(3, 3);
+    for (int i = 0; i < im.width; i++)
     {
-        for (int j = 0; j < 512; j++)
+        for (int j = 0; j < im.hight; j++)
         {
             color *tem = get_pixiv(&im, i, j);
-            tem->A = i * 0.5;
-            tem->R = i * 0.5;
-            tem->G = j * 0.5;
-            tem->B = j * 0.5;
+            tem->A = 255;
+            tem->R = 255 * i / 3;
+            tem->G = 255 * j / 3;
+            tem->B = 0;
         }
     }
     bmp *img = bmp_new(&im);
-    bmp_save(img, "/home/wu_wa/CICIEC/ImageCompression/test.bmp");
+    bmp_save(img, "/home/wu_wa/CICIEC/ImageCompression/red.bmp");
 }
 
 int bmp_compare_test()
@@ -72,7 +70,7 @@ int huffman_decode_test()
 int prediction_test()
 {
     bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
-    image img = new_image(bmp1);
+    image img = new_image_from_bmp(bmp1);
     prediction pre = new_prediction(LOCO_I_PREDICT);
     predict(&pre, &img);
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_COLO_I_prediction.bmp");
@@ -81,7 +79,7 @@ int prediction_test()
 int recover_test()
 {
     bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
-    image img = new_image(bmp1);
+    image img = new_image_from_bmp(bmp1);
     prediction pre1 = new_prediction(COLUMN_DIFFER_PREDICT);
     predict(&pre1, &img);
     bmp_save(bmp1, "/home/wu_wa/CICIEC/ImageCompression/atri_column_prediction.bmp");
@@ -101,7 +99,7 @@ int golomb_rice_test()
         golomb_rice_encode(i, (uint8_t *)res, &ind, 2);
         ind = 0;
         uint16_t dec = golomb_rice_decode((uint8_t *)res, &ind, 2);
-        LOG("%s  %d  %d", print_bit(res, ind), ind, dec);
+        LOG("%s  %d  %d", print_bit((uint8_t *)res, ind), ind, dec);
     }
     // k-stage exp golomb encode decode test
     LOG("// k-stage exp golomb encode decode test");
@@ -112,7 +110,7 @@ int golomb_rice_test()
         // LOG("%s", print_bit(&i, 32));
         ind = 0;
         uint32_t dec = golomb_exp_decode((uint8_t *)res, &ind, 0);
-        LOG("%s  %d  %d", print_bit(res, ind), ind, dec);
+        LOG("%s  %d  %d", print_bit((uint8_t *)res, ind), ind, dec);
     }
 }
 
@@ -125,5 +123,15 @@ int lz77_test()
     for (int i = 0; i < 21; i++)
         printf("%d ", d[i]);
     printf("\n");
+}
+
+int jls_encode_test(const char *img_path)
+{
+    bmp *bmp = bmp_load(img_path);
+    image img = new_image_from_bmp(bmp);
+    jls jls = jls_init(&img, LINE_SCAN);
+    jls_encode(&img, &jls);
+    jls_save(&jls, "red.myjls");
+    jls_free(&jls);
 }
 #endif

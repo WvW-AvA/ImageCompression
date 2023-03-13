@@ -45,5 +45,7 @@ void print_color(color c);
 int is_color_equal(color *c1, color *c2);
 color color_add(color c1, color c2);
 color color_minus(color c1, color c2);
-image new_image(struct bmp *bmp);
+image new_image_from_bmp(struct bmp *bmp);
+
+image new_image(uint32_t w, uint32_t h);
 #endif

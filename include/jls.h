@@ -18,7 +18,7 @@
 
 typedef struct jls_struct
 {
-    uint8_t *raw;
+    uint32_t file_size;
     uint32_t width;
     uint32_t height;
     uint32_t data_size;
@@ -26,9 +26,13 @@ typedef struct jls_struct
     uint8_t near;
     uint8_t golomb_exp_k;
     uint8_t scan_mode;
+    uint8_t *raw;
     uint8_t *data_segment;
 } jls;
 
+jls jls_init(image *img, uint8_t scan_mode);
+void jls_save(jls *jls, const char *save_path);
+void jls_free(jls *jls);
 void jls_encode(image *img, jls *jls);
 image jls_decode(jls *jls);
 #endif

@@ -48,7 +48,15 @@ inline color color_minus(color c1, color c2)
     return c;
 }
 
-image new_image(bmp *bmp)
+image new_image(uint32_t w, uint32_t h)
+{
+    image ret;
+    ret.data = (color *)malloc(w * h * sizeof(color));
+    ret.hight = h;
+    ret.width = w;
+    return ret;
+}
+image new_image_from_bmp(bmp *bmp)
 {
     image ret;
     ret.data = bmp->data;
@@ -73,7 +81,6 @@ void data_save(file_struct *f, const char *path)
     fclose(fi);
     LOG("Compress done!\nSave in %s", path);
 }
-
 file_struct data_load(const char *path)
 {
     file_struct ret;
@@ -132,7 +139,7 @@ void encode(const char *image_path, const char *data_path)
 {
     file_struct data;
     bmp *bmp = bmp_load(image_path);
-    image img = new_image(bmp);
+    image img = new_image_from_bmp(bmp);
     data.image_width = bmp->info->bi_width;
     data.image_hight = bmp->info->bi_hight;
     // prediction
@@ -164,7 +171,7 @@ void decode(const char *data_path, const char *save_path)
     img.hight = data.image_hight;
     huffman_decode_handle decode = huffman_decode(*data.huffman);
     img.data = (color *)lz77_decode(decode.data, decode.size, img.hight * img.width * 4);
-    RRGGBBAA_2_RGBARGBA(img.data, img.width * img.hight * 4);
+    RRGGBBAA_2_RGBARGBA((uint8_t *)img.data, img.width * img.hight * 4);
     recover(data.predict, &img);
     bmp *bmp = bmp_new(&img);
     bmp_save(bmp, save_path);
@@ -181,5 +188,7 @@ int main(int argc, char **argv)
     // encode("/home/wu_wa/CICIEC/ImageCompression/atri.bmp", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save");
     // decode("/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_new.bmp");
 
-    golomb_rice_test();
+    // golomb_rice_test();
+    // new_image_test();
+    jls_encode_test("/home/wu_wa/CICIEC/ImageCompression/red.bmp");
 }
