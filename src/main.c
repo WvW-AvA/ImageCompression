@@ -7,14 +7,21 @@
 char str[100];
 char *print_bit(uint8_t *src, uint32_t num)
 {
+    int j = 0;
     for (int i = 0; i < num; i++)
     {
+        if (i % 4 == 0)
+        {
+            str[j] = ' ';
+            j++;
+        }
         if (GET_BIT(src, i))
-            str[i] = '1';
+            str[j] = '1';
         else
-            str[i] = '0';
+            str[j] = '0';
+        j++;
     }
-    str[num] = '\0';
+    str[j] = '\0';
     return str;
 }
 inline color *get_pixiv(image *target, uint32_t x, uint32_t y)
@@ -189,6 +196,7 @@ int main(int argc, char **argv)
     // decode("/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_new.bmp");
 
     // golomb_rice_test();
-    // new_image_test();
-    jls_encode_test("/home/wu_wa/CICIEC/ImageCompression/red.bmp");
+    //  new_image_test();
+    jls_encode_test("atri.bmp", "atri.myjls");
+    jls_decode_test("atri.myjls", "atri_recover.bmp");
 }

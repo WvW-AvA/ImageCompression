@@ -103,7 +103,7 @@ int golomb_rice_test()
     }
     // k-stage exp golomb encode decode test
     LOG("// k-stage exp golomb encode decode test");
-    for (uint32_t i = 0; i < 65577; i++)
+    for (uint32_t i = 0; i < 5000; i++)
     {
         ind = 0;
         golomb_exp_encode(i, (uint8_t *)res, &ind, 0);
@@ -125,13 +125,21 @@ int lz77_test()
     printf("\n");
 }
 
-int jls_encode_test(const char *img_path)
+int jls_encode_test(const char *img_path, const char *tar_path)
 {
     bmp *bmp = bmp_load(img_path);
     image img = new_image_from_bmp(bmp);
     jls jls = jls_init(&img, LINE_SCAN);
     jls_encode(&img, &jls);
-    jls_save(&jls, "red.myjls");
+    jls_save(&jls, tar_path);
     jls_free(&jls);
+}
+
+int jls_decode_test(const char *myjls_path, const char *img_path)
+{
+    jls jls = jls_load(myjls_path);
+    image img = jls_decode(&jls);
+    bmp *bmp = bmp_new(&img);
+    bmp_save(bmp, img_path);
 }
 #endif

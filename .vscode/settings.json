@@ -3,7 +3,6 @@
         "*.template": "c",
         "main.h": "c",
         "stm32f1xx_hal_conf.h": "c",
-        "stdio.h": "c",
-        "prediction.h": "c"
+        "log.h": "c"
     }
 }
