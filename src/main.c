@@ -190,13 +190,16 @@ int main(int argc, char **argv)
     // huffman_decode_test();
     // prediction_test();
     // recover_test();
-    // bmp_compare_test();
     // lz77_test();
     // encode("/home/wu_wa/CICIEC/ImageCompression/atri.bmp", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save");
     // decode("/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_new.bmp");
 
     // golomb_rice_test();
     //  new_image_test();
-    jls_encode_test("atri.bmp", "atri.myjls");
-    jls_decode_test("atri.myjls", "atri_recover.bmp");
+    jls_encode_test("red.bmp", "red.myjls");
+    jls_decode_test("red.myjls", "red_recover.bmp");
+    bmp_compare_test("red.bmp", "red_recover.bmp");
+    // jls_encode_test("atri.bmp", "atri.myjls");
+    // jls_decode_test("atri.myjls", "atri_recover.bmp");
+    // bmp_compare_test("atri.bmp", "atri_recover.bmp");
 }

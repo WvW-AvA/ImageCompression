@@ -28,10 +28,10 @@ int new_image_test()
     bmp_save(img, "/home/wu_wa/CICIEC/ImageCompression/red.bmp");
 }
 
-int bmp_compare_test()
+int bmp_compare_test(const char *img1, const char *img2)
 {
-    bmp *bmp1 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri.bmp");
-    bmp *bmp2 = bmp_load("/home/wu_wa/CICIEC/ImageCompression/atri_LOCO_new.bmp");
+    bmp *bmp1 = bmp_load(img1);
+    bmp *bmp2 = bmp_load(img2);
     bmp_print(bmp1);
     bmp_print(bmp2);
     if (bmp_compare(bmp1, bmp2))

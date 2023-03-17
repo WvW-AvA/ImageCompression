@@ -5,6 +5,11 @@
 #include "prediction.h"
 #include "golomb.h"
 #include "log.h"
+// 统计
+int encode_statistc[610];
+int run_length_statistc;
+int run_total_length;
+
 // 量化边界
 int quatization_edge[4];
 // 当前channel的编码模式
@@ -22,6 +27,17 @@ uint32_t run_length_count[4];
 uint8_t run_length_reference[4];
 
 uint8_t channel = 0;
+void global_variable_reset()
+{
+    memset(quatization_edge, 0, 4);
+    memset(channel_mode, 0, 4);
+    memset(run_length_count, 0, 4);
+    memset(run_length_reference, 0, 4);
+    memset(contex_arg_a, 0, 4 * 365 * sizeof(int));
+    memset(contex_arg_b, 0, 4 * 365 * sizeof(int));
+    memset(contex_arg_c, 0, 4 * 365 * sizeof(int));
+    memset(contex_arg_n, 0, 4 * 365 * sizeof(int));
+}
 void normal_encode(jls *jls, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d);
 
 void write_value(uint32_t val, jls *jls)
@@ -43,6 +59,9 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
         run_length_count[channel]++;
     else
     {
+        run_length_statistc++;
+        run_total_length += run_length_count[channel];
+
         write_value(run_length_count[channel], jls);
         channel_mode[channel] = NORMAL_MODE;
         normal_encode(jls, v, a, b, c, d);
@@ -107,7 +126,8 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
     int q2 = gradient_quantization(d2);
-    int sign = SIGN(q0);
+    int sign = SIGN(q0 ? q0 : q1 ? q1
+                                 : q2);
     q0 *= sign;
     q1 *= sign;
     q2 *= sign;
@@ -127,18 +147,25 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
     uint32_t m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
     write_value(m_err, jls);
+    encode_statistc[m_err]++;
+    // LOG("[q0:%d,q1:%d,q2:%d] sign:%d q:%d pred:%d Normal Eecode:%d\n", q0, q1, q2, sign, q, pred, m_err);
 }
 
 void normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t *target_pix)
 {
-    int err = (e_err % 2) ? (-(e_err + 1) / 2) : (e_err / 2);
+    int err = 0;
+    if ((e_err % 2) == 1)
+        err = -((int)e_err + 1) / 2;
+    else
+        err = ((int)e_err) / 2;
     int d0 = d - b;
     int d1 = b - c;
     int d2 = c - a;
     int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
     int q2 = gradient_quantization(d2);
-    int sign = SIGN(q0);
+    int sign = SIGN(q0 ? q0 : q1 ? q1
+                                 : q2);
     q0 *= sign;
     q1 *= sign;
     q2 *= sign;
@@ -153,8 +180,10 @@ void normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, ui
         pred = a + b - c;
 
     pred = pred + sign * contex_arg_c[channel][q];
+    update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
     (*target_pix) = err * sign + pred;
-    // printf("set:%d  ", *target_pix);
+    // LOG("[q0:%d,q1:%d,q2:%d] q:%d e_err:%d err:%d pred:%d Normal decode:%d\n",
+    //   q0, q1, q2, q, e_err, err, pred, *target_pix);
 }
 
 __always_inline void get_contex(image *img, uint32_t x, uint32_t y, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d, uint8_t *v)
@@ -181,7 +210,7 @@ __always_inline void get_contex(image *img, uint32_t x, uint32_t y, uint8_t *a, 
     }
     if (x != 0)
         *a = *(((uint8_t *)get_pixiv(img, x - 1, y)) + channel);
-    // LOG("get contex (%4d,%4d) a:%4d b:%4d c:%4d d:%4d v:%4d  mode:%d", x, y, *a, *b, *c, *d, *v_mode[channel]);
+    // LOG("get contex (%d,%d) [%d,%d,%d,%d,%d]  mode:%d", x, y, *a, *b, *c, *d, *v, channel_mode[channel]);
 }
 
 void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
@@ -238,6 +267,7 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
 
 jls jls_init(image *img, uint8_t scan_mode)
 {
+    global_variable_reset();
     jls jls;
     jls.data_segment = (uint8_t *)malloc(sizeof(color) * img->width * img->hight * 2);
     jls.curr_index = 0;
@@ -245,7 +275,7 @@ jls jls_init(image *img, uint8_t scan_mode)
     jls.height = img->hight;
     jls.width = img->width;
     jls.channel_count = 4;
-    jls.golomb_exp_k = 0;
+    jls.golomb_exp_k = 1;
     jls.near = 0;
     jls.scan_mode = scan_mode;
     quatization_edge[1] = (8 - 7) * 3 + jls.near;
@@ -278,6 +308,7 @@ void line_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 
 void jls_encode(image *img, jls *jls)
 {
+
     int c;
     for (c = 0; c < jls->channel_count; c++)
     {
@@ -289,6 +320,9 @@ void jls_encode(image *img, jls *jls)
     }
     set_channel(c, jls, 1);
     LOG("jls encode done");
+    for (int i = 0; i < 610; i++)
+        LOG("%d:%d", i, encode_statistc[i]);
+    LOG("run length num:%d  run count:%d", run_length_statistc, run_total_length);
 }
 
 image jls_decode(jls *jls)
@@ -326,6 +360,7 @@ jls jls_load(const char *path)
     {
         LOG_ERROR("jls path %s not found", path);
     }
+    global_variable_reset();
     jls ret;
     fread(&ret, sizeof(uint32_t) * 4 + sizeof(uint8_t) * 4, 1, f);
     ret.data_segment = (uint8_t *)malloc(sizeof(uint8_t) * ret.data_size);
