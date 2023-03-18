@@ -42,6 +42,8 @@ void normal_encode(jls *jls, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t
 
 void write_value(uint32_t val, jls *jls)
 {
+    if (val < 610)
+        encode_statistc[val]++;
     golomb_exp_encode(val, jls->data_segment, &(jls->curr_index), jls->golomb_exp_k);
     // printf("%d  ", val);
 }
@@ -83,7 +85,7 @@ void update_context_parameter(int err, int q, jls *jls, int *a, int *b, int *c, 
     // update context parameter
     a[q] += ABS(err);
     b[q] += err * (2 * jls->near + 1);
-    if (n[q] == 0)
+    if (n[q] == 64)
     {
         a[q] >>= 1;
         b[q] >>= 1;
@@ -97,7 +99,7 @@ void update_context_parameter(int err, int q, jls *jls, int *a, int *b, int *c, 
         if (b[q] < -n[q])
             b[q] = 1 - n[q];
     }
-    else if (b > 0)
+    else if (b[q] > 0)
     {
         c[q] += 1;
         b[q] -= n[q];
@@ -147,7 +149,6 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
     uint32_t m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
     write_value(m_err, jls);
-    encode_statistc[m_err]++;
     // LOG("[q0:%d,q1:%d,q2:%d] sign:%d q:%d pred:%d Normal Eecode:%d\n", q0, q1, q2, sign, q, pred, m_err);
 }
 

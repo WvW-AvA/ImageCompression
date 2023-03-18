@@ -196,10 +196,10 @@ int main(int argc, char **argv)
 
     // golomb_rice_test();
     //  new_image_test();
-    jls_encode_test("red.bmp", "red.myjls");
-    jls_decode_test("red.myjls", "red_recover.bmp");
-    bmp_compare_test("red.bmp", "red_recover.bmp");
-    // jls_encode_test("atri.bmp", "atri.myjls");
-    // jls_decode_test("atri.myjls", "atri_recover.bmp");
-    // bmp_compare_test("atri.bmp", "atri_recover.bmp");
+    // jls_encode_test("red.bmp", "red.myjls");
+    // jls_decode_test("red.myjls", "red_recover.bmp");
+    // bmp_compare_test("red.bmp", "red_recover.bmp");
+    jls_encode_test("atri.bmp", "atri.myjls");
+    jls_decode_test("atri.myjls", "atri_recover.bmp");
+    bmp_compare_test("atri.bmp", "atri_recover.bmp");
 }
