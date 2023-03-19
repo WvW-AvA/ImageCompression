@@ -15,13 +15,13 @@ int quatization_edge[4];
 // 当前channel的编码模式
 uint8_t channel_mode[4];
 // 预测误差绝对值之和
-int contex_arg_a[4][365];
+int contex_arg_a[4][366];
 // 预测误差重建值之和
 int contex_arg_b[4][365];
 // 预测误差矫正值
 int contex_arg_c[4][365];
 // 上下文出现次数
-int contex_arg_n[4][365];
+int contex_arg_n[4][366];
 
 uint32_t run_length_count[4];
 uint8_t run_length_reference[4];
@@ -66,6 +66,18 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
 
         write_value(run_length_count[channel], jls);
         channel_mode[channel] = NORMAL_MODE;
+
+        int d0 = d - b;
+        int d1 = b - c;
+        int d2 = c - a;
+        // caculate differ
+        if (d0 == 0 && d1 == 0 && d2 == 0)
+        {
+            // flat area
+            channel_mode[channel] = RUN_LENGTH_MODE;
+            run_length_count[channel] = 1;
+            run_length_reference[channel] = v;
+        }
         normal_encode(jls, v, a, b, c, d);
     }
 }
@@ -113,17 +125,6 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     int d0 = d - b;
     int d1 = b - c;
     int d2 = c - a;
-    // caculate differ
-    if (d0 == 0 && d1 == 0 && d2 == 0)
-    {
-        // flat area
-        channel_mode[channel] = RUN_LENGTH_MODE;
-        write_value(RUN_LENGTH_MODE_FLAG, jls);
-        write_value(v, jls);
-        run_length_count[channel] = 1;
-        run_length_reference[channel] = v;
-        return;
-    }
     // quantization
     int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
@@ -152,7 +153,7 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     // LOG("[q0:%d,q1:%d,q2:%d] sign:%d q:%d pred:%d Normal Eecode:%d\n", q0, q1, q2, sign, q, pred, m_err);
 }
 
-void normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, uint8_t d, uint8_t *target_pix)
+uint8_t normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
     int err = 0;
     if ((e_err % 2) == 1)
@@ -182,7 +183,8 @@ void normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, ui
 
     pred = pred + sign * contex_arg_c[channel][q];
     update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
-    (*target_pix) = err * sign + pred;
+    return err * sign + pred;
+    // printf("N_set:%d", *target_pix);
     // LOG("[q0:%d,q1:%d,q2:%d] q:%d e_err:%d err:%d pred:%d Normal decode:%d\n",
     //   q0, q1, q2, q, e_err, err, pred, *target_pix);
 }
@@ -226,17 +228,30 @@ void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
     }
     else if (channel_mode[channel] == NORMAL_MODE)
     {
+        int d0 = *d - *b;
+        int d1 = *b - *c;
+        int d2 = *c - *a;
+        // caculate differ
+        if (d0 == 0 && d1 == 0 && d2 == 0)
+        {
+            // flat area
+            channel_mode[channel] = RUN_LENGTH_MODE;
+            run_length_count[channel] = 1;
+            run_length_reference[channel] = *v;
+        }
         normal_encode(jls, *v, *a, *b, *c, *d);
     }
 }
 
 void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
 {
+
     uint8_t *set_target = ((uint8_t *)get_pixiv(img, x, y)) + channel;
+
     if (channel_mode[channel] == RUN_LENGTH_MODE)
     {
         *set_target = run_length_reference[channel];
-        // printf("set:%d  ", *set_target);
+        // printf("R_set:%d  ", *set_target);
         run_length_count[channel] -= 1;
         if (run_length_count[channel] == 0)
             channel_mode[channel] = NORMAL_MODE;
@@ -244,25 +259,26 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
     }
     if (channel_mode[channel] == NORMAL_MODE)
     {
-        uint32_t value = read_value(jls);
-
-        if (value == RUN_LENGTH_MODE_FLAG)
+        uint8_t zero[5] = {0};
+        uint8_t *a = zero, *b = zero + 1, *c = zero + 2, *d = zero + 3, *v = zero + 4;
+        get_contex(img, x, y, a, b, c, d, v);
+        int d0 = *d - *b;
+        int d1 = *b - *c;
+        int d2 = *c - *a;
+        if (d0 == 0 && d1 == 0 && d2 == 0)
         {
             // begin run-length code
             channel_mode[channel] = RUN_LENGTH_MODE;
-            run_length_reference[channel] = read_value(jls);
+            run_length_reference[channel] = normal_decode(jls, read_value(jls), *a, *b, *c, *d);
             run_length_count[channel] = read_value(jls) - 1;
             *set_target = run_length_reference[channel];
-            // printf("set:%d  ", *set_target);
+            // printf("R_set:%d  ", *set_target);
             if (run_length_count[channel] == 0)
                 channel_mode[channel] = NORMAL_MODE;
             return;
         }
         // get context
-        uint8_t zero[5] = {0};
-        uint8_t *a = zero, *b = zero + 1, *c = zero + 2, *d = zero + 3, *v = zero + 4;
-        get_contex(img, x, y, a, b, c, d, v);
-        normal_decode(jls, value, *a, *b, *c, *d, set_target);
+        *set_target = normal_decode(jls, read_value(jls), *a, *b, *c, *d);
     }
 }
 
@@ -321,8 +337,8 @@ void jls_encode(image *img, jls *jls)
     }
     set_channel(c, jls, 1);
     LOG("jls encode done");
-    for (int i = 0; i < 610; i++)
-        LOG("%d:%d", i, encode_statistc[i]);
+    // for (int i = 0; i < 610; i++)
+    //     LOG("%d:%d", i, encode_statistc[i]);
     LOG("run length num:%d  run count:%d", run_length_statistc, run_total_length);
 }
 

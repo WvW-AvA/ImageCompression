@@ -93,17 +93,17 @@ int golomb_rice_test()
     uint32_t ind;
     // rice golomb encode decode test
     LOG("// rice golomb encode decode test");
-    for (int i = 0; i < 0; i++)
+    for (int i = 0; i < 1000; i++)
     {
         ind = 0;
-        golomb_rice_encode(i, (uint8_t *)res, &ind, 2);
+        golomb_rice_encode(i, (uint8_t *)res, &ind, 7);
         ind = 0;
-        uint16_t dec = golomb_rice_decode((uint8_t *)res, &ind, 2);
+        uint16_t dec = golomb_rice_decode((uint8_t *)res, &ind, 7);
         LOG("%s  %d  %d", print_bit((uint8_t *)res, ind), ind, dec);
     }
     // k-stage exp golomb encode decode test
     LOG("// k-stage exp golomb encode decode test");
-    for (uint32_t i = 0; i < 5000; i++)
+    for (uint32_t i = 0; i < 0; i++)
     {
         ind = 0;
         golomb_exp_encode(i, (uint8_t *)res, &ind, 0);

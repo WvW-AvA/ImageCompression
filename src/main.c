@@ -195,7 +195,7 @@ int main(int argc, char **argv)
     // decode("/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_I.save", "/home/wu_wa/CICIEC/ImageCompression/atri_lz77_LOCO_new.bmp");
 
     // golomb_rice_test();
-    //  new_image_test();
+    //   new_image_test();
     // jls_encode_test("red.bmp", "red.myjls");
     // jls_decode_test("red.myjls", "red_recover.bmp");
     // bmp_compare_test("red.bmp", "red_recover.bmp");

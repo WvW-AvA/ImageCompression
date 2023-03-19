@@ -14,11 +14,14 @@ void eden_change(uint32_t *value)
     p[2] = temp;
 }
 
-void golomb_rice_encode(uint16_t val, uint8_t *dst, uint32_t *index_ptr, uint8_t b)
+void golomb_rice_encode(uint16_t val, uint8_t *dst, uint32_t *index_ptr, uint8_t m)
 {
-    uint8_t m = 0x01 << b;
     uint8_t q = val / m;
-    uint8_t r = val & (m - 1);
+    uint8_t r = val % m;
+    uint8_t b;
+    for (b = 0; m > (0x01 << b); b++)
+    {
+    }
     for (int i = 0; i < q; i++)
     {
         RESET_BIT(dst, *index_ptr);
@@ -66,16 +69,20 @@ void golomb_exp_encode(uint32_t val, uint8_t *dst, uint32_t *index_ptr, uint8_t 
     }
 }
 
-uint16_t golomb_rice_decode(uint8_t *src, uint32_t *index_ptr, uint8_t b)
+uint16_t golomb_rice_decode(uint8_t *src, uint32_t *index_ptr, uint8_t m)
 {
     uint16_t ret = 0;
     uint8_t n = 0;
+    uint8_t b;
+    for (b = 0; m > (0x01 << b); b++)
+    {
+    }
     while (GET_BIT(src, *index_ptr) == 0)
     {
         n++;
         (*index_ptr)++;
     }
-    ret += n * (0x01 << b);
+    ret += n * m;
     uint8_t tem = 0;
     (*index_ptr)++;
     for (int i = 0; i < b; i++)
