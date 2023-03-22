@@ -40,15 +40,13 @@ void global_variable_reset()
 }
 void normal_encode(jls *jls, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d);
 
-void write_value(uint32_t val, jls *jls)
+void write_value(uint32_t val, jls *jls, int q)
 {
-    if (val < 610)
-        encode_statistc[val]++;
     golomb_exp_encode(val, jls->data_segment, &(jls->curr_index), jls->golomb_exp_k);
     // printf("%d  ", val);
 }
 
-uint32_t read_value(jls *jls)
+uint32_t read_value(jls *jls, int q)
 {
     uint32_t ret = golomb_exp_decode(jls->data_segment, &(jls->curr_index), jls->golomb_exp_k);
     // printf("%d  ", ret);
@@ -64,7 +62,7 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
         run_length_statistc++;
         run_total_length += run_length_count[channel];
 
-        write_value(run_length_count[channel], jls);
+        write_value(run_length_count[channel], jls, 365);
         channel_mode[channel] = NORMAL_MODE;
 
         int d0 = d - b;
@@ -149,17 +147,13 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     int err = sign * (v - pred);
     update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
     uint32_t m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
-    write_value(m_err, jls);
+    write_value(m_err, jls, q);
     // LOG("[q0:%d,q1:%d,q2:%d] sign:%d q:%d pred:%d Normal Eecode:%d\n", q0, q1, q2, sign, q, pred, m_err);
 }
 
-uint8_t normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+uint8_t normal_decode(jls *jls, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
-    int err = 0;
-    if ((e_err % 2) == 1)
-        err = -((int)e_err + 1) / 2;
-    else
-        err = ((int)e_err) / 2;
+
     int d0 = d - b;
     int d1 = b - c;
     int d2 = c - a;
@@ -173,6 +167,12 @@ uint8_t normal_decode(jls *jls, uint32_t e_err, uint8_t a, uint8_t b, uint8_t c,
     q2 *= sign;
     int q = ((q0 * 9 + q1) * 9 + q2);
 
+    uint32_t e_err = read_value(jls, q);
+    int err = 0;
+    if ((e_err % 2) == 1)
+        err = -((int)e_err + 1) / 2;
+    else
+        err = ((int)e_err) / 2;
     int pred;
     if (c > MAX(a, b))
         pred = MIN(a, b);
@@ -269,8 +269,8 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
         {
             // begin run-length code
             channel_mode[channel] = RUN_LENGTH_MODE;
-            run_length_reference[channel] = normal_decode(jls, read_value(jls), *a, *b, *c, *d);
-            run_length_count[channel] = read_value(jls) - 1;
+            run_length_reference[channel] = normal_decode(jls, *a, *b, *c, *d);
+            run_length_count[channel] = read_value(jls, 365) - 1;
             *set_target = run_length_reference[channel];
             // printf("R_set:%d  ", *set_target);
             if (run_length_count[channel] == 0)
@@ -278,7 +278,7 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
             return;
         }
         // get context
-        *set_target = normal_decode(jls, read_value(jls), *a, *b, *c, *d);
+        *set_target = normal_decode(jls, *a, *b, *c, *d);
     }
 }
 
@@ -307,7 +307,7 @@ void set_channel(int value, jls *jls, uint8_t isWrite)
     if (channel == value - 1 && channel_mode[channel] == RUN_LENGTH_MODE)
     {
         if (isWrite)
-            write_value(run_length_count[channel], jls);
+            write_value(run_length_count[channel], jls, 365);
         channel_mode[channel] = NORMAL_MODE;
     }
     channel = value;
