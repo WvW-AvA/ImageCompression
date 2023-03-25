@@ -129,7 +129,7 @@ int jls_encode_test(const char *img_path, const char *tar_path)
 {
     bmp *bmp = bmp_load(img_path);
     image img = new_image_from_bmp(bmp);
-    jls jls = jls_init(&img, LINE_SCAN);
+    jls jls = jls_init(&img, TILE16_SCAN);
     jls_encode(&img, &jls);
     jls_save(&jls, tar_path);
     jls_free(&jls);

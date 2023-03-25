@@ -10,8 +10,9 @@
 #define RUN_LENGTH_MODE 1
 
 #define LINE_SCAN 0
-#define TILE8_SCAN 1
-#define TILE16_SCAN 2
+#define TILE4_SCAN 1
+#define TILE8_SCAN 2
+#define TILE16_SCAN 3
 
 #define RUN_LENGTH_MODE_FLAG 600
 #define CHANNEL_BEGIN 601

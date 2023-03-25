@@ -65,11 +65,10 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
         write_value(run_length_count[channel], jls, 365);
         channel_mode[channel] = NORMAL_MODE;
 
-        int d0 = d - b;
         int d1 = b - c;
         int d2 = c - a;
-        // caculate differ
-        if (d0 == 0 && d1 == 0 && d2 == 0)
+        //  caculate differ
+        if (d2 == 0 && d1 == 0)
         {
             // flat area
             channel_mode[channel] = RUN_LENGTH_MODE;
@@ -120,19 +119,15 @@ void update_context_parameter(int err, int q, jls *jls, int *a, int *b, int *c, 
 
 void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
-    int d0 = d - b;
     int d1 = b - c;
     int d2 = c - a;
     // quantization
-    int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
     int q2 = gradient_quantization(d2);
-    int sign = SIGN(q0 ? q0 : q1 ? q1
-                                 : q2);
-    q0 *= sign;
+    int sign = SIGN(q1 ? q1 : q2);
     q1 *= sign;
     q2 *= sign;
-    int q = ((q0 * 9 + q1) * 9 + q2);
+    int q = (q1 * 9 + q2);
 
     int pred;
     if (c > MAX(a, b))
@@ -154,18 +149,14 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
 uint8_t normal_decode(jls *jls, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
 
-    int d0 = d - b;
     int d1 = b - c;
     int d2 = c - a;
-    int q0 = gradient_quantization(d0);
     int q1 = gradient_quantization(d1);
     int q2 = gradient_quantization(d2);
-    int sign = SIGN(q0 ? q0 : q1 ? q1
-                                 : q2);
-    q0 *= sign;
+    int sign = SIGN(q1 ? q1 : q2);
     q1 *= sign;
     q2 *= sign;
-    int q = ((q0 * 9 + q1) * 9 + q2);
+    int q = (q1 * 9 + q2);
 
     uint32_t e_err = read_value(jls, q);
     int err = 0;
@@ -228,11 +219,10 @@ void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
     }
     else if (channel_mode[channel] == NORMAL_MODE)
     {
-        int d0 = *d - *b;
         int d1 = *b - *c;
         int d2 = *c - *a;
         // caculate differ
-        if (d0 == 0 && d1 == 0 && d2 == 0)
+        if (d1 == 0 && d2 == 0)
         {
             // flat area
             channel_mode[channel] = RUN_LENGTH_MODE;
@@ -262,10 +252,9 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
         uint8_t zero[5] = {0};
         uint8_t *a = zero, *b = zero + 1, *c = zero + 2, *d = zero + 3, *v = zero + 4;
         get_contex(img, x, y, a, b, c, d, v);
-        int d0 = *d - *b;
         int d1 = *b - *c;
         int d2 = *c - *a;
-        if (d0 == 0 && d1 == 0 && d2 == 0)
+        if (d1 == 0 && d2 == 0)
         {
             // begin run-length code
             channel_mode[channel] = RUN_LENGTH_MODE;
@@ -313,6 +302,7 @@ void set_channel(int value, jls *jls, uint8_t isWrite)
     channel = value;
     LOG("Channel %d scan begin\n", value);
 }
+
 void line_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
     for (int y = 0; y < img->hight; y++)
@@ -320,6 +310,53 @@ void line_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
         {
             // printf("(%d,%d)", x, y);
             magnetic_function(img, x, y, jls);
+        }
+}
+
+__always_inline void tile4_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    for (int y = b_y; y < MIN(b_y + 4, img->hight); y++)
+        for (int x = b_x; x < MIN(b_x + 4, img->width); x++)
+            magnetic_function(img, x, y, jls);
+}
+void tile4_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    for (int b_y = 0; b_y < img->hight; b_y += 4)
+        for (int b_x = 0; b_x < img->width; b_x += 4)
+        {
+            tile4_sub_scan(b_x, b_y, img, jls, magnetic_function);
+        }
+}
+
+__always_inline void tile8_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    tile4_sub_scan(b_x, b_y, img, jls, magnetic_function);
+    tile4_sub_scan(b_x + 4, b_y, img, jls, magnetic_function);
+    tile4_sub_scan(b_x, b_y + 4, img, jls, magnetic_function);
+    tile4_sub_scan(b_x + 4, b_y + 4, img, jls, magnetic_function);
+}
+void tile8_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    for (int b_y = 0; b_y < img->hight; b_y += 8)
+        for (int b_x = 0; b_x < img->width; b_x += 8)
+        {
+            tile8_sub_scan(b_x, b_y, img, jls, magnetic_function);
+        }
+}
+
+__always_inline void tile16_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    tile8_sub_scan(b_x, b_y, img, jls, magnetic_function);
+    tile8_sub_scan(b_x + 8, b_y, img, jls, magnetic_function);
+    tile8_sub_scan(b_x, b_y + 8, img, jls, magnetic_function);
+    tile8_sub_scan(b_x + 8, b_y + 8, img, jls, magnetic_function);
+}
+void tile16_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
+{
+    for (int b_y = 0; b_y < img->hight; b_y += 16)
+        for (int b_x = 0; b_x < img->width; b_x += 16)
+        {
+            tile16_sub_scan(b_x, b_y, img, jls, magnetic_function);
         }
 }
 
@@ -333,6 +370,18 @@ void jls_encode(image *img, jls *jls)
         if (jls->scan_mode == LINE_SCAN)
         {
             line_scan(img, jls, jls_encode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE4_SCAN)
+        {
+            tile4_scan(img, jls, jls_encode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE8_SCAN)
+        {
+            tile8_scan(img, jls, jls_encode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE16_SCAN)
+        {
+            tile16_scan(img, jls, jls_encode_magnetic_head);
         }
     }
     set_channel(c, jls, 1);
@@ -352,6 +401,18 @@ image jls_decode(jls *jls)
         if (jls->scan_mode == LINE_SCAN)
         {
             line_scan(&img, jls, jls_decode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE4_SCAN)
+        {
+            tile4_scan(&img, jls, jls_decode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE8_SCAN)
+        {
+            tile8_scan(&img, jls, jls_decode_magnetic_head);
+        }
+        else if (jls->scan_mode == TILE16_SCAN)
+        {
+            tile16_scan(&img, jls, jls_decode_magnetic_head);
         }
     }
     set_channel(c, jls, 0);
