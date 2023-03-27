@@ -15,7 +15,7 @@ int new_image_test()
     image im = new_image(3, 3);
     for (int i = 0; i < im.width; i++)
     {
-        for (int j = 0; j < im.hight; j++)
+        for (int j = 0; j < im.height; j++)
         {
             color *tem = get_pixiv(&im, i, j);
             tem->A = 255;
@@ -60,7 +60,7 @@ int huffman_decode_test()
     huffman_encode_handle encode = huffman_load("/home/wu_wa/CICIEC/ImageCompression/save.huffman");
     huffman_decode_handle decode = huffman_decode(encode);
     image img;
-    img.hight = 1080;
+    img.height = 1080;
     img.width = 1920;
     img.data = (color *)decode.data;
     bmp *bmp = bmp_new(&img);
@@ -129,7 +129,7 @@ int jls_encode_test(const char *img_path, const char *tar_path)
 {
     bmp *bmp = bmp_load(img_path);
     image img = new_image_from_bmp(bmp);
-    jls jls = jls_init(&img, TILE16_SCAN);
+    jls jls = jls_init(&img, LINE_SCAN);
     jls_encode(&img, &jls);
     jls_save(&jls, tar_path);
     jls_free(&jls);

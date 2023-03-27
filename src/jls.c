@@ -26,7 +26,6 @@ int contex_arg_n[4][366];
 uint32_t run_length_count[4];
 uint8_t run_length_reference[4];
 
-uint8_t channel = 0;
 void global_variable_reset()
 {
     memset(quatization_edge, 0, 4);
@@ -38,22 +37,23 @@ void global_variable_reset()
     memset(contex_arg_c, 0, 4 * 365 * sizeof(int));
     memset(contex_arg_n, 0, 4 * 365 * sizeof(int));
 }
-void normal_encode(jls *jls, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d);
+void normal_encode(jls *jls, uint8_t channel, uint8_t x, uint8_t a, uint8_t b, uint8_t c, uint8_t d);
 
-void write_value(uint32_t val, jls *jls, int q)
+void write_value(uint32_t val, jls *jls, uint8_t channel, int q)
 {
-    golomb_exp_encode(val, jls->data_segment, &(jls->curr_index), jls->golomb_exp_k);
-    // printf("%d  ", val);
+    // LOG("(%d)%d==>%d", channel, val, jls->curr_index[channel]);
+    golomb_exp_encode(val, jls->data_segment, &(jls->curr_index[channel]), jls->golomb_exp_k);
 }
 
-uint32_t read_value(jls *jls, int q)
+uint32_t read_value(jls *jls, uint8_t channel, int q)
 {
-    uint32_t ret = golomb_exp_decode(jls->data_segment, &(jls->curr_index), jls->golomb_exp_k);
-    // printf("%d  ", ret);
+    int temp = jls->curr_index[channel];
+    uint32_t ret = golomb_exp_decode(jls->data_segment, &(jls->curr_index[channel]), jls->golomb_exp_k);
+    // LOG("(%d)%d<==%d", channel, ret, temp);
     return ret;
 }
 
-void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+void run_length_encode(jls *jls, uint8_t channel, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
     if (v == run_length_reference[channel])
         run_length_count[channel]++;
@@ -62,7 +62,7 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
         run_length_statistc++;
         run_total_length += run_length_count[channel];
 
-        write_value(run_length_count[channel], jls, 365);
+        write_value(run_length_count[channel], jls, channel, 365);
         channel_mode[channel] = NORMAL_MODE;
 
         int d1 = b - c;
@@ -75,7 +75,7 @@ void run_length_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uin
             run_length_count[channel] = 1;
             run_length_reference[channel] = v;
         }
-        normal_encode(jls, v, a, b, c, d);
+        normal_encode(jls, channel, v, a, b, c, d);
     }
 }
 
@@ -117,7 +117,7 @@ void update_context_parameter(int err, int q, jls *jls, int *a, int *b, int *c, 
     }
 }
 
-void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+void normal_encode(jls *jls, uint8_t channel, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
     int d1 = b - c;
     int d2 = c - a;
@@ -142,11 +142,11 @@ void normal_encode(jls *jls, uint8_t v, uint8_t a, uint8_t b, uint8_t c, uint8_t
     int err = sign * (v - pred);
     update_context_parameter(err, q, jls, contex_arg_a[channel], contex_arg_b[channel], contex_arg_c[channel], contex_arg_n[channel]);
     uint32_t m_err = err >= 0 ? (2 * err) : (-2 * err - 1);
-    write_value(m_err, jls, q);
+    write_value(m_err, jls, channel, q);
     // LOG("[q0:%d,q1:%d,q2:%d] sign:%d q:%d pred:%d Normal Eecode:%d\n", q0, q1, q2, sign, q, pred, m_err);
 }
 
-uint8_t normal_decode(jls *jls, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
+uint8_t normal_decode(jls *jls, uint8_t channel, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
 {
 
     int d1 = b - c;
@@ -158,7 +158,7 @@ uint8_t normal_decode(jls *jls, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     q2 *= sign;
     int q = (q1 * 9 + q2);
 
-    uint32_t e_err = read_value(jls, q);
+    uint32_t e_err = read_value(jls, channel, q);
     int err = 0;
     if ((e_err % 2) == 1)
         err = -((int)e_err + 1) / 2;
@@ -180,7 +180,7 @@ uint8_t normal_decode(jls *jls, uint8_t a, uint8_t b, uint8_t c, uint8_t d)
     //   q0, q1, q2, q, e_err, err, pred, *target_pix);
 }
 
-__always_inline void get_contex(image *img, uint32_t x, uint32_t y, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d, uint8_t *v)
+__always_inline void get_contex(image *img, uint8_t channel, uint32_t x, uint32_t y, uint8_t *a, uint8_t *b, uint8_t *c, uint8_t *d, uint8_t *v)
 {
     *v = *((uint8_t *)get_pixiv(img, x, y) + channel);
     if (y != 0)
@@ -207,15 +207,15 @@ __always_inline void get_contex(image *img, uint32_t x, uint32_t y, uint8_t *a, 
     // LOG("get contex (%d,%d) [%d,%d,%d,%d,%d]  mode:%d", x, y, *a, *b, *c, *d, *v, channel_mode[channel]);
 }
 
-void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
+void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls, uint8_t channel)
 {
     // get context
     uint8_t zero[5] = {0};
     uint8_t *a = zero, *b = zero + 1, *c = zero + 2, *d = zero + 3, *v = zero + 4;
-    get_contex(img, x, y, a, b, c, d, v);
+    get_contex(img, channel, x, y, a, b, c, d, v);
     if (channel_mode[channel] == RUN_LENGTH_MODE)
     {
-        run_length_encode(jls, *v, *a, *b, *c, *d);
+        run_length_encode(jls, channel, *v, *a, *b, *c, *d);
     }
     else if (channel_mode[channel] == NORMAL_MODE)
     {
@@ -229,11 +229,11 @@ void jls_encode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
             run_length_count[channel] = 1;
             run_length_reference[channel] = *v;
         }
-        normal_encode(jls, *v, *a, *b, *c, *d);
+        normal_encode(jls, channel, *v, *a, *b, *c, *d);
     }
 }
 
-void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
+void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls, uint8_t channel)
 {
 
     uint8_t *set_target = ((uint8_t *)get_pixiv(img, x, y)) + channel;
@@ -251,15 +251,15 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
     {
         uint8_t zero[5] = {0};
         uint8_t *a = zero, *b = zero + 1, *c = zero + 2, *d = zero + 3, *v = zero + 4;
-        get_contex(img, x, y, a, b, c, d, v);
+        get_contex(img, channel, x, y, a, b, c, d, v);
         int d1 = *b - *c;
         int d2 = *c - *a;
         if (d1 == 0 && d2 == 0)
         {
             // begin run-length code
             channel_mode[channel] = RUN_LENGTH_MODE;
-            run_length_reference[channel] = normal_decode(jls, *a, *b, *c, *d);
-            run_length_count[channel] = read_value(jls, 365) - 1;
+            run_length_reference[channel] = normal_decode(jls, channel, *a, *b, *c, *d);
+            run_length_count[channel] = read_value(jls, channel, 365) - 1;
             *set_target = run_length_reference[channel];
             // printf("R_set:%d  ", *set_target);
             if (run_length_count[channel] == 0)
@@ -267,18 +267,20 @@ void jls_decode_magnetic_head(image *img, uint32_t x, uint32_t y, jls *jls)
             return;
         }
         // get context
-        *set_target = normal_decode(jls, *a, *b, *c, *d);
+        *set_target = normal_decode(jls, channel, *a, *b, *c, *d);
     }
 }
 
 jls jls_init(image *img, uint8_t scan_mode)
 {
     global_variable_reset();
+    int quart = sizeof(color) * img->width * img->height / 2;
     jls jls;
-    jls.data_segment = (uint8_t *)malloc(sizeof(color) * img->width * img->hight * 2);
-    jls.curr_index = 0;
+    jls.data_segment = (uint8_t *)malloc(quart * 4);
+    for (int i = 0; i < 4; i++)
+        jls.curr_index[i] = 8 * (quart * i);
     jls.data_size = 0;
-    jls.height = img->hight;
+    jls.height = img->height;
     jls.width = img->width;
     jls.channel_count = 4;
     jls.golomb_exp_k = 1;
@@ -290,42 +292,53 @@ jls jls_init(image *img, uint8_t scan_mode)
     LOG("jls init done img_size:%dx%d scan_mode %d", jls.width, jls.height, jls.scan_mode);
     return jls;
 }
-
-void set_channel(int value, jls *jls, uint8_t isWrite)
+void encodeEnd(jls *jls)
 {
-    if (channel == value - 1 && channel_mode[channel] == RUN_LENGTH_MODE)
+    for (int i = 0; i < 4; i++)
     {
-        if (isWrite)
-            write_value(run_length_count[channel], jls, 365);
-        channel_mode[channel] = NORMAL_MODE;
+        if (channel_mode[i] == RUN_LENGTH_MODE)
+        {
+            write_value(run_length_count[i], jls, i, 365);
+            channel_mode[i] = NORMAL_MODE;
+        }
     }
-    channel = value;
-    LOG("Channel %d scan begin\n", value);
 }
-
 void line_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
-    for (int y = 0; y < img->hight; y++)
+    for (int y = 0; y < img->height; y++)
         for (int x = 0; x < img->width; x++)
         {
             // printf("(%d,%d)", x, y);
-            magnetic_function(img, x, y, jls);
+            magnetic_function(img, x, y, jls, CHANNEL_R);
+            magnetic_function(img, x, y, jls, CHANNEL_G);
+            magnetic_function(img, x, y, jls, CHANNEL_B);
+            magnetic_function(img, x, y, jls, CHANNEL_A);
         }
+    if (magnetic_function == jls_encode_magnetic_head)
+        encodeEnd(jls);
 }
 
 __always_inline void tile4_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
-    for (int y = b_y; y < MIN(b_y + 4, img->hight); y++)
+    for (int y = b_y; y < MIN(b_y + 4, img->height); y++)
         for (int x = b_x; x < MIN(b_x + 4, img->width); x++)
-            magnetic_function(img, x, y, jls);
+        {
+            magnetic_function(img, x, y, jls, CHANNEL_R);
+            magnetic_function(img, x, y, jls, CHANNEL_G);
+            magnetic_function(img, x, y, jls, CHANNEL_B);
+            magnetic_function(img, x, y, jls, CHANNEL_A);
+        }
 }
 void tile4_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
-    for (int b_y = 0; b_y < img->hight; b_y += 4)
+    for (int b_y = 0; b_y < img->height; b_y += 4)
         for (int b_x = 0; b_x < img->width; b_x += 4)
         {
             tile4_sub_scan(b_x, b_y, img, jls, magnetic_function);
         }
+
+    if (magnetic_function == jls_encode_magnetic_head)
+        encodeEnd(jls);
 }
 
 __always_inline void tile8_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
@@ -337,11 +350,14 @@ __always_inline void tile8_sub_scan(int b_x, int b_y, image *img, jls *jls, magn
 }
 void tile8_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
-    for (int b_y = 0; b_y < img->hight; b_y += 8)
+    for (int b_y = 0; b_y < img->height; b_y += 8)
         for (int b_x = 0; b_x < img->width; b_x += 8)
         {
             tile8_sub_scan(b_x, b_y, img, jls, magnetic_function);
         }
+
+    if (magnetic_function == jls_encode_magnetic_head)
+        encodeEnd(jls);
 }
 
 __always_inline void tile16_sub_scan(int b_x, int b_y, image *img, jls *jls, magnetic_func_ptr magnetic_function)
@@ -353,38 +369,35 @@ __always_inline void tile16_sub_scan(int b_x, int b_y, image *img, jls *jls, mag
 }
 void tile16_scan(image *img, jls *jls, magnetic_func_ptr magnetic_function)
 {
-    for (int b_y = 0; b_y < img->hight; b_y += 16)
+    for (int b_y = 0; b_y < img->height; b_y += 16)
         for (int b_x = 0; b_x < img->width; b_x += 16)
         {
             tile16_sub_scan(b_x, b_y, img, jls, magnetic_function);
         }
+
+    if (magnetic_function == jls_encode_magnetic_head)
+        encodeEnd(jls);
 }
 
 void jls_encode(image *img, jls *jls)
 {
 
-    int c;
-    for (c = 0; c < jls->channel_count; c++)
+    if (jls->scan_mode == LINE_SCAN)
     {
-        set_channel(c, jls, 1);
-        if (jls->scan_mode == LINE_SCAN)
-        {
-            line_scan(img, jls, jls_encode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE4_SCAN)
-        {
-            tile4_scan(img, jls, jls_encode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE8_SCAN)
-        {
-            tile8_scan(img, jls, jls_encode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE16_SCAN)
-        {
-            tile16_scan(img, jls, jls_encode_magnetic_head);
-        }
+        line_scan(img, jls, jls_encode_magnetic_head);
     }
-    set_channel(c, jls, 1);
+    else if (jls->scan_mode == TILE4_SCAN)
+    {
+        tile4_scan(img, jls, jls_encode_magnetic_head);
+    }
+    else if (jls->scan_mode == TILE8_SCAN)
+    {
+        tile8_scan(img, jls, jls_encode_magnetic_head);
+    }
+    else if (jls->scan_mode == TILE16_SCAN)
+    {
+        tile16_scan(img, jls, jls_encode_magnetic_head);
+    }
     LOG("jls encode done");
     // for (int i = 0; i < 610; i++)
     //     LOG("%d:%d", i, encode_statistc[i]);
@@ -394,28 +407,22 @@ void jls_encode(image *img, jls *jls)
 image jls_decode(jls *jls)
 {
     image img = new_image(jls->width, jls->height);
-    int c;
-    for (c = 0; c < jls->channel_count; c++)
+    if (jls->scan_mode == LINE_SCAN)
     {
-        set_channel(c, jls, 0);
-        if (jls->scan_mode == LINE_SCAN)
-        {
-            line_scan(&img, jls, jls_decode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE4_SCAN)
-        {
-            tile4_scan(&img, jls, jls_decode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE8_SCAN)
-        {
-            tile8_scan(&img, jls, jls_decode_magnetic_head);
-        }
-        else if (jls->scan_mode == TILE16_SCAN)
-        {
-            tile16_scan(&img, jls, jls_decode_magnetic_head);
-        }
+        line_scan(&img, jls, jls_decode_magnetic_head);
     }
-    set_channel(c, jls, 0);
+    else if (jls->scan_mode == TILE4_SCAN)
+    {
+        tile4_scan(&img, jls, jls_decode_magnetic_head);
+    }
+    else if (jls->scan_mode == TILE8_SCAN)
+    {
+        tile8_scan(&img, jls, jls_decode_magnetic_head);
+    }
+    else if (jls->scan_mode == TILE16_SCAN)
+    {
+        tile16_scan(&img, jls, jls_decode_magnetic_head);
+    }
     LOG("jls decode done");
     return img;
 }
@@ -423,11 +430,21 @@ image jls_decode(jls *jls)
 void jls_save(jls *jls, const char *save_path)
 {
     FILE *f = fopen(save_path, "w");
-    jls->data_size = (jls->curr_index / 8) + 1;
-    jls->file_size = sizeof(uint32_t) * 4 + sizeof(uint8_t) * 4 + jls->data_size;
+    int quart = sizeof(color) * jls->width * jls->height / 2;
+    for (int i = 0; i < 4; i++)
+    {
+        jls->curr_index[i] -= 8 * quart * i;
+        jls->curr_index[i] = jls->curr_index[i] / 8 + 1;
+        jls->data_size += jls->curr_index[i];
+    }
+    jls->file_size = sizeof(uint32_t) * 8 + sizeof(uint8_t) * 4 + jls->data_size;
     LOG("jls save path:%s file size:%d segment size %d", save_path, jls->file_size, jls->data_size);
     fwrite(jls, sizeof(uint32_t) * 4 + sizeof(uint8_t) * 4, 1, f);
-    fwrite(jls->data_segment, jls->data_size, 1, f);
+    for (int i = 0; i < 4; i++)
+        fwrite(&jls->curr_index[i], sizeof(uint32_t), 1, f);
+
+    for (int i = 0; i < 4; i++)
+        fwrite(jls->data_segment + quart * i, jls->curr_index[i], 1, f);
     fclose(f);
 }
 
@@ -441,9 +458,17 @@ jls jls_load(const char *path)
     global_variable_reset();
     jls ret;
     fread(&ret, sizeof(uint32_t) * 4 + sizeof(uint8_t) * 4, 1, f);
+    for (int i = 0; i < 4; i++)
+        fread(&ret.curr_index[i], sizeof(uint32_t), 1, f);
     ret.data_segment = (uint8_t *)malloc(sizeof(uint8_t) * ret.data_size);
     fread(ret.data_segment, ret.data_size, 1, f);
-    ret.curr_index = 0;
+    for (int i = 3; i > 0; i--)
+    {
+        ret.curr_index[i] = 0;
+        for (int j = 0; j < i; j++)
+            ret.curr_index[i] += 8 * ret.curr_index[j];
+    }
+    ret.curr_index[0] = 0;
     fclose(f);
     LOG("Load myjls file from %s file size %d channel count %d golomb k %d scan mode %d", path, ret.file_size, ret.channel_count, ret.golomb_exp_k, ret.scan_mode);
     return ret;

@@ -59,7 +59,7 @@ image new_image(uint32_t w, uint32_t h)
 {
     image ret;
     ret.data = (color *)malloc(w * h * sizeof(color));
-    ret.hight = h;
+    ret.height = h;
     ret.width = w;
     return ret;
 }
@@ -67,7 +67,7 @@ image new_image_from_bmp(bmp *bmp)
 {
     image ret;
     ret.data = bmp->data;
-    ret.hight = bmp->info->bi_hight;
+    ret.height = bmp->info->bi_hight;
     ret.width = bmp->info->bi_width;
     return ret;
 }
@@ -175,10 +175,10 @@ void decode(const char *data_path, const char *save_path)
     file_struct data = data_load(data_path);
     image img;
     img.width = data.image_width;
-    img.hight = data.image_hight;
+    img.height = data.image_hight;
     huffman_decode_handle decode = huffman_decode(*data.huffman);
-    img.data = (color *)lz77_decode(decode.data, decode.size, img.hight * img.width * 4);
-    RRGGBBAA_2_RGBARGBA((uint8_t *)img.data, img.width * img.hight * 4);
+    img.data = (color *)lz77_decode(decode.data, decode.size, img.height * img.width * 4);
+    RRGGBBAA_2_RGBARGBA((uint8_t *)img.data, img.width * img.height * 4);
     recover(data.predict, &img);
     bmp *bmp = bmp_new(&img);
     bmp_save(bmp, save_path);

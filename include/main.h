@@ -25,7 +25,7 @@ typedef struct
 typedef struct image
 {
     uint32_t width;
-    uint32_t hight;
+    uint32_t height;
     color *data;
 } image;
 

@@ -21,7 +21,7 @@ typedef struct
 {
     uint32_t bi_head_size;       // bmp_info_head need size.
     int bi_width;                // image width
-    int bi_hight;                // image hight
+    int bi_hight;                // image height
     uint16_t bi_planes;          //
     uint16_t bi_bit_count;       // bit count 1 , 4 , 8 , 16 , 24 or 32
     uint32_t bi_compression;     // compression type

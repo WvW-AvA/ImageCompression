@@ -38,7 +38,7 @@ void bmp_print(bmp *src)
 bmp *bmp_new(image *image)
 {
     bmp *res = (bmp *)malloc(sizeof(bmp));
-    res->raw = (uint8_t *)malloc(sizeof(color) * image->hight * image->width + 138);
+    res->raw = (uint8_t *)malloc(sizeof(color) * image->height * image->width + 138);
     uint8_t head[138] = {
         0x42, 0x4D, 0x8A, 0x90, 0x7E, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x8A, 0x00, 0x00, 0x00, 0x7C, 0x00,
@@ -63,9 +63,9 @@ bmp *bmp_new(image *image)
     res->info = (bmp_info_head *)(res->raw + 14);
     res->data = (color *)(res->raw + res->file->bf_offset_bits);
     res->info->bi_compression = BMP_BI_RGB;
-    res->info->bi_hight = image->hight;
+    res->info->bi_hight = image->height;
     res->info->bi_width = image->width;
-    res->info->bi_image_size = image->hight * image->width * sizeof(color);
+    res->info->bi_image_size = image->height * image->width * sizeof(color);
     res->file->bf_size = res->info->bi_image_size + 138;
     memcpy(res->data, image->data, res->info->bi_image_size);
     return res;

@@ -27,11 +27,11 @@ typedef struct jls_struct
     uint8_t near;
     uint8_t golomb_exp_k;
     uint8_t scan_mode;
-    uint32_t curr_index;
+    uint32_t curr_index[4];
     uint8_t *data_segment;
 } jls;
 
-typedef void (*magnetic_func_ptr)(image *img, uint32_t x, uint32_t y, jls *jls);
+typedef void (*magnetic_func_ptr)(image *img, uint32_t x, uint32_t y, jls *jls, uint8_t channel);
 
 jls jls_init(image *img, uint8_t scan_mode);
 jls jls_load(const char *path);

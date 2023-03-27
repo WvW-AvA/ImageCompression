@@ -56,13 +56,13 @@ __always_inline void COLO_I_add(uint8_t *sign_flag, color *A, color *B, color *C
 void cloumn_differ_predict(prediction *predict, image *target)
 {
     predict->reserve_color[0] = target->data[0];
-    for (int i = target->hight - 1; i >= 0; i--)
+    for (int i = target->height - 1; i >= 0; i--)
         for (int j = target->width - 1; j > 0; j--)
         {
             uint32_t d = target->width * i + j;
             my_color_minus(predict->sign_flag, target->data + d, target->data + d - 1, d);
         }
-    for (int i = target->hight - 1; i > 0; i--)
+    for (int i = target->height - 1; i > 0; i--)
     {
         uint32_t d = target->width * i;
         my_color_minus(predict->sign_flag, target->data + d, target->data + d - target->width, d);
@@ -73,12 +73,12 @@ void cloumn_differ_predict(prediction *predict, image *target)
 void cloumn_differ_recover(prediction *predict, image *target)
 {
     target->data[0] = predict->reserve_color[0];
-    for (int i = 1; i < target->hight; i++)
+    for (int i = 1; i < target->height; i++)
     {
         uint32_t d = target->width * i;
         my_color_add(predict->sign_flag, target->data + d, target->data + d - target->width, d);
     }
-    for (int i = 0; i < target->hight; i++)
+    for (int i = 0; i < target->height; i++)
         for (int j = 1; j < target->width; j++)
         {
             uint32_t d = target->width * i + j;
@@ -89,14 +89,14 @@ void cloumn_differ_recover(prediction *predict, image *target)
 void LOCO_I_predict(prediction *predict, image *target)
 {
     predict->reserve_color[0] = target->data[0];
-    for (int i = target->hight - 1; i > 0; i--)
+    for (int i = target->height - 1; i > 0; i--)
         for (int j = target->width - 1; j > 0; j--)
         {
             uint32_t d = target->width * i + j;
             COLO_I_minus(predict->sign_flag, target->data + d - 1, target->data + d - target->width,
                          target->data + d - target->width - 1, target->data + d, d);
         }
-    for (int i = target->hight - 1; i > 0; i--)
+    for (int i = target->height - 1; i > 0; i--)
     {
         uint32_t d = target->width * i;
         my_color_minus(predict->sign_flag, target->data + d, target->data + d - target->width, d);
@@ -114,12 +114,12 @@ void LOCO_I_recover(prediction *predict, image *target)
     {
         my_color_add(predict->sign_flag, target->data + i, target->data + i - 1, i);
     }
-    for (int i = 1; i < target->hight; i++)
+    for (int i = 1; i < target->height; i++)
     {
         uint32_t d = target->width * i;
         my_color_add(predict->sign_flag, target->data + d, target->data + d - target->width, d);
     }
-    for (int i = 1; i < target->hight; i++)
+    for (int i = 1; i < target->height; i++)
         for (int j = 1; j < target->width; j++)
         {
             uint32_t d = target->width * i + j;
@@ -141,7 +141,7 @@ void recover(prediction *predict, image *target)
 }
 void predict(prediction *predict, image *target)
 {
-    uint32_t s_size = sizeof(uint8_t) * target->width * target->hight / 2 + 1;
+    uint32_t s_size = sizeof(uint8_t) * target->width * target->height / 2 + 1;
     predict->sign_flag = (uint8_t *)malloc(s_size);
     predict->file_size += s_size;
     if (predict->predict_type == COLUMN_DIFFER_PREDICT)
